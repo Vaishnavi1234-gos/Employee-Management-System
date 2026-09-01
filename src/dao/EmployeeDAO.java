@@ -42,37 +42,52 @@ public class EmployeeDAO {
         }
     }
 
-
     // =========================================
-    // VIEW ALL EMPLOYEES
-    // =========================================
-    public void viewEmployees() {
+// VIEW ALL EMPLOYEES
+// =========================================
+public void viewEmployees() {
 
-        String sql = "SELECT * FROM employee";
+    String sql = "SELECT * FROM employee ORDER BY name ASC";
 
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+    try (Connection con = DBConnection.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
 
-            System.out.println("\n----- Employee List -----");
+        System.out.println("\n---------------- EMPLOYEE LIST ----------------");
 
-            while (rs.next()) {
+        System.out.printf("%-5s %-22s %-25s %-15s %-12s%n",
+                "ID", "Name", "Email", "Department", "Salary");
 
-                System.out.println("ID: " + rs.getInt("id"));
-                System.out.println("Name: " + rs.getString("name"));
-                System.out.println("Email: " + rs.getString("email"));
-                System.out.println("Department: " + rs.getString("department"));
-                System.out.println("Salary: " + rs.getDouble("salary"));
+        System.out.println(
+                "--------------------------------------------------------------------------");
 
-                System.out.println("-------------------------");
-            }
+        boolean found = false;
 
-        } catch (SQLException e) {
+        while (rs.next()) {
 
-            System.out.println("Error retrieving employees!");
-            e.printStackTrace();
+            found = true;
+
+            System.out.printf("%-5d %-22s %-25s %-15s %-12.2f%n",
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("email"),
+                    rs.getString("department"),
+                    rs.getDouble("salary"));
         }
+
+        if (!found) {
+            System.out.println("No employees found!");
+        }
+
+        System.out.println(
+                "--------------------------------------------------------------------------");
+
+    } catch (SQLException e) {
+
+        System.out.println("Error retrieving employees!");
+        e.printStackTrace();
     }
+}
 
 
     // =========================================
@@ -87,28 +102,99 @@ public class EmployeeDAO {
 
             ps.setInt(1, id);
 
-            ResultSet rs = ps.executeQuery();
+            try (ResultSet rs = ps.executeQuery()) {
 
-            if (rs.next()) {
+                if (rs.next()) {
 
-                System.out.println("\n----- Employee Found -----");
+                    System.out.println("\n----- Employee Found -----");
 
-                System.out.println("ID: " + rs.getInt("id"));
-                System.out.println("Name: " + rs.getString("name"));
-                System.out.println("Email: " + rs.getString("email"));
-                System.out.println("Department: " + rs.getString("department"));
-                System.out.println("Salary: " + rs.getDouble("salary"));
+                    printEmployee(rs);
 
-                System.out.println("--------------------------");
+                } else {
 
-            } else {
-
-                System.out.println("Employee not found!");
+                    System.out.println("Employee not found!");
+                }
             }
 
         } catch (SQLException e) {
 
             System.out.println("Error searching employee!");
+            e.printStackTrace();
+        }
+    }
+
+
+    // =========================================
+    // SEARCH EMPLOYEE BY NAME
+    // =========================================
+    public void searchEmployeeByName(String name) {
+
+        String sql = "SELECT * FROM employee WHERE name LIKE ?";
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, "%" + name + "%");
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                boolean found = false;
+
+                System.out.println("\n----- Search Results -----");
+
+                while (rs.next()) {
+
+                    found = true;
+
+                    printEmployee(rs);
+                }
+
+                if (!found) {
+                    System.out.println("No employee found with this name!");
+                }
+            }
+
+        } catch (SQLException e) {
+
+            System.out.println("Error searching employee by name!");
+            e.printStackTrace();
+        }
+    }
+
+
+    // =========================================
+    // SEARCH EMPLOYEE BY DEPARTMENT
+    // =========================================
+    public void searchEmployeeByDepartment(String department) {
+
+        String sql = "SELECT * FROM employee WHERE department LIKE ?";
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, "%" + department + "%");
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                boolean found = false;
+
+                System.out.println("\n----- Department Employees -----");
+
+                while (rs.next()) {
+
+                    found = true;
+
+                    printEmployee(rs);
+                }
+
+                if (!found) {
+                    System.out.println("No employees found in this department!");
+                }
+            }
+
+        } catch (SQLException e) {
+
+            System.out.println("Error searching employee by department!");
             e.printStackTrace();
         }
     }
@@ -145,8 +231,12 @@ public class EmployeeDAO {
 
         } catch (SQLException e) {
 
-            System.out.println("Error updating employee!");
-            e.printStackTrace();
+            if (e.getMessage().contains("Duplicate")) {
+                System.out.println("Another employee already uses this email!");
+            } else {
+                System.out.println("Error updating employee!");
+                e.printStackTrace();
+            }
         }
     }
 
@@ -180,4 +270,92 @@ public class EmployeeDAO {
             e.printStackTrace();
         }
     }
+
+
+    // =========================================
+    // PRINT EMPLOYEE DETAILS
+    // =========================================
+    private void printEmployee(ResultSet rs) throws SQLException {
+
+        System.out.println("--------------------------");
+        System.out.println("ID: " + rs.getInt("id"));
+        System.out.println("Name: " + rs.getString("name"));
+        System.out.println("Email: " + rs.getString("email"));
+        System.out.println("Department: " + rs.getString("department"));
+        System.out.println("Salary: " + rs.getDouble("salary"));
+        System.out.println("--------------------------");
+    }
+    // =========================================
+// EMPLOYEE STATISTICS
+// =========================================
+public void showStatistics() {
+
+    String sql = "SELECT COUNT(*) AS total, " +
+                 "AVG(salary) AS average, " +
+                 "MAX(salary) AS highest, " +
+                 "MIN(salary) AS lowest " +
+                 "FROM employee";
+
+    try (Connection con = DBConnection.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+
+        if (rs.next()) {
+
+            int total = rs.getInt("total");
+            double average = rs.getDouble("average");
+            double highest = rs.getDouble("highest");
+            double lowest = rs.getDouble("lowest");
+
+            System.out.println("\n----- EMPLOYEE STATISTICS -----");
+
+            System.out.println("Total Employees: " + total);
+            System.out.printf("Average Salary: Rs.%.2f%n", average);
+            System.out.printf("Highest Salary: Rs.%.2f%n", highest);
+            System.out.printf("Lowest Salary: Rs.%.2f%n", lowest);
+        }
+
+    } catch (SQLException e) {
+
+        System.out.println("Error retrieving employee statistics!");
+        e.printStackTrace();
+    }
+}
+// =========================================
+// DEPARTMENT STATISTICS
+// =========================================
+public void showDepartmentStatistics() {
+
+    String sql = "SELECT department, COUNT(*) AS total " +
+                 "FROM employee " +
+                 "GROUP BY department " +
+                 "ORDER BY department ASC";
+
+    try (Connection con = DBConnection.getConnection();
+         PreparedStatement ps = con.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+
+        System.out.println("\n----- DEPARTMENT STATISTICS -----");
+
+        boolean found = false;
+
+        while (rs.next()) {
+
+            found = true;
+
+            System.out.printf("%-15s : %d employee(s)%n",
+                    rs.getString("department"),
+                    rs.getInt("total"));
+        }
+
+        if (!found) {
+            System.out.println("No employees found!");
+        }
+
+    } catch (SQLException e) {
+
+        System.out.println("Error retrieving department statistics!");
+        e.printStackTrace();
+    }
+}
 }
